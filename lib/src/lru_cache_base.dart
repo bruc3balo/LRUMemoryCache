@@ -45,6 +45,7 @@ class LRUMemoryCache<K, V> {
     int capacity = 100,
     this.onExpire,
     this.autoExpireCheckDuration,
+    StreamController<LinkedHashMap<K, V>>? streamController,
     this.onCapacityRemoved,
     this.shouldRemoveOnCapacity,
     this.expireMode = ExpireMode.onInteraction,
