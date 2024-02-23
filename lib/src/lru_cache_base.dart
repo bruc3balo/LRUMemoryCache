@@ -4,8 +4,8 @@ import 'dart:collection';
 /// Holds cache data in memory for a set capacity
 /// Allows setting for a duration
 class LRUMemoryCache<K, V> {
-  ///Capacity of [_cache]
-  int capacity;
+  ///Maximum Capacity of [_cache]
+  int _capacity;
 
   /// Generate key [K] from value [V]
   final K Function(V data) generateKey;
@@ -42,7 +42,7 @@ class LRUMemoryCache<K, V> {
 
   LRUMemoryCache({
     required this.generateKey,
-    this.capacity = 100,
+    int capacity = 100,
     this.onExpire,
     this.autoExpireCheckDuration,
     this.onCapacityRemoved,
@@ -56,6 +56,7 @@ class LRUMemoryCache<K, V> {
           hashCode: hashCode,
           isValidKey: isValidKey,
         ),
+        _capacity = capacity,
         assert(capacity > 0) {
     if (expireMode == ExpireMode.autoExpire) {
       assert(autoExpireCheckDuration != null);
@@ -67,11 +68,22 @@ class LRUMemoryCache<K, V> {
   }
 
   ///Check if [_cache] is at capacity
-  bool get isAtCapacity => _cache.length >= capacity;
+  bool get isAtCapacity => _cache.length >= _capacity;
 
+  ///Check if [_cache] has allowance of items
   bool get isNotAtCapacity => !isAtCapacity;
 
-  /// O(1)
+  /// Dymaically change the [_capacity] of the [_cache]
+  set capacity(int capacity) {
+    assert(capacity > 0);
+    _capacity = capacity;
+  }
+
+  ///Returns the value of current [_capacity]
+  int get capacity => _capacity;
+
+  /// O(n) but asyncronous
+  /// Internal function to add a value to the [_cache]
   V _add(
     V value, {
     Duration? expiryDuration,
@@ -91,7 +103,7 @@ class LRUMemoryCache<K, V> {
       expiryDuration: expiryDuration,
     );
 
-    //Update used O(1)
+    //Update used O(n)
     _moveUpStack(newKey, newData, exist);
 
     //return value
@@ -99,15 +111,16 @@ class LRUMemoryCache<K, V> {
   }
 
   /// Adds a [value] to the cache
-  /// If it exists it will be replaced, and will be most recently used
-  /// Sets [expiryDuration] for data to expire when [Duration] elapses
+  /// If it exists, it will be replaced, and will be most recently used i.e. Moved to top of stack
+  /// Sets optional [expiryDuration] for data to expire when the [Duration] elapses
   /// O(n)
   V add(
     V value, {
     Duration? expiryDuration,
   }) {
-
     //Remove Expired O(n)
+    _removeInteractionExpired();
+
     return _add(
       value,
       expiryDuration: expiryDuration,
@@ -116,24 +129,26 @@ class LRUMemoryCache<K, V> {
 
   /// O(n) where n is [values.length]
   Map<K, V> addMany(Map<V, Duration?> values) {
-
     //Remove Expired O(n)
     _removeInteractionExpired();
 
     //Return map
     Map<K, V> map = {};
 
-    //Add Values
+    // Add Values
+    // O(n)
     for (var e in values.entries) {
       V value = e.key;
-      Duration? expiryDuration = e.value;
       K k = generateKey(value);
+      Duration? expiryDuration = e.value;
 
+      //O(n)
       value = _add(
         value,
         expiryDuration: expiryDuration,
       );
 
+      //O(1)
       map.putIfAbsent(
         k,
         () => value,
@@ -143,7 +158,7 @@ class LRUMemoryCache<K, V> {
     return map;
   }
 
-  /// O(1) get
+  /// O(n) get
   MapEntry<K, V>? _get(K key) {
     //Get data O(1)
     _LRUData<V>? value = _cache[key];
@@ -169,7 +184,6 @@ class LRUMemoryCache<K, V> {
 
   /// O(n) where n is [keys.length]
   ManyResult getMany(List<K> keys) {
-
     //Remove expired data O(n)
     _removeInteractionExpired();
 
@@ -177,6 +191,7 @@ class LRUMemoryCache<K, V> {
     ManyResult<K, V> result = ManyResult();
 
     //Get keys
+    // O(n)
     for (K key in keys) {
       MapEntry<K, V>? data = _get(key);
 
@@ -198,7 +213,7 @@ class LRUMemoryCache<K, V> {
     _cache.removeWhere(
       (key, value) {
         bool expired = value.hasDataExpired;
-        if(!expired) return false;
+        if (!expired) return false;
 
         bool removeDecision = onExpire?.call(key, value.data) ?? true;
 
@@ -220,9 +235,10 @@ class LRUMemoryCache<K, V> {
 
   /// Updates [key] to top of stack [_keyStack]
   /// Updates / adds [value] to [_cache]
-  /// O(1)
-  void _moveUpStack(K key, _LRUData<V> value, bool exists) {
-    //remove key O(1)
+  /// O(n) due to removing from [_keyStack]
+  /// It's not time required immediately so it's asyncronous
+  Future<void> _moveUpStack(K key, _LRUData<V> value, bool exists) async {
+    //remove key O(n)
     if (exists) _keyStack.remove(key);
 
     //add key to top of stack O(1)
@@ -234,31 +250,30 @@ class LRUMemoryCache<K, V> {
       (v) => value,
       ifAbsent: () => value,
     );
-
   }
 
   /// Removes LRU item i.e. bottom item of stack from [_keyStack] & [_cache]
   /// O(1)
   void _removeLRUFromStack() {
+    //Fail fast
     if (_keyStack.isEmpty) return;
 
     K key = _keyStack.last;
     V value = _cache[key]!.data;
 
     bool remove = shouldRemoveOnCapacity?.call(key, value) ?? true;
-    if(!remove) {
-
+    if (!remove) {
       //search stack from bottom till item is removed
       List<V> stack = _keyStack.map((e) => _cache[e]!.data).toList();
-      for(int i = stack.length - 1; i >= 0; i--) {
+      for (int i = stack.length - 1; i >= 0; i--) {
         V nextValue = stack[i];
         K nextKey = generateKey(nextValue);
 
         //Skip this item as it's not to be removed
-        if(key == nextKey) continue;
+        if (key == nextKey) continue;
 
         remove = shouldRemoveOnCapacity?.call(nextKey, nextValue) ?? true;
-        if(remove) {
+        if (remove) {
           _keyStack.remove(nextKey);
           _cache.remove(nextValue);
           onCapacityRemoved?.call(nextKey, nextValue);
@@ -269,13 +284,13 @@ class LRUMemoryCache<K, V> {
       //If not item is removed then the bottom item will be removed
     }
 
-
     //remove key O(1)
     key = _keyStack.removeLast();
 
     //remove entry O(1)
     value = _cache.remove(key)!.data;
 
+    //Notify item has been removed due to max capacity
     onCapacityRemoved?.call(key, value);
   }
 
@@ -297,7 +312,7 @@ class LRUMemoryCache<K, V> {
     );
   }
 
-  /// Clears the timer and removes all data
+  /// Clears the timer and removes all data from [_keyStack] && [_cache]
   void dispose() {
     if (_timer?.isActive ?? false) {
       _timer?.cancel();
@@ -305,7 +320,6 @@ class LRUMemoryCache<K, V> {
     _cache.clear();
     _keyStack.clear();
   }
-
 }
 
 /// Data Type of the [LRUMemoryCache]
@@ -342,7 +356,6 @@ class ManyResult<K, V> {
   String toString() {
     return "{found : $found, notFound : $notFound}";
   }
-
 }
 
 /// Option on how to remove expired items
