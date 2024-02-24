@@ -4,20 +4,24 @@ import 'dart:collection';
 /// Holds cache data in memory for a set capacity
 /// Allows setting for a duration
 class LRUMemoryCache<K, V> {
-  ///Maximum Capacity of [_cache]
+
+  /// Maximum Capacity of [_cache]
   int _capacity;
+
+  /// If set, when adding items it will be used as default expiry time when no expiry time is set
+  Duration? globalExpiryTime;
 
   /// Generate key [K] from value [V]
   final K Function(V data) generateKey;
 
-  ///Hold cached data
+  /// Hold cached data
   final LinkedHashMap<K, _LRUData<V>> _cache;
 
-  ///Hold order of keys
+  /// Hold order of keys as a stack
   final Queue<K> _keyStack = Queue();
 
-  ///Duration to check if items have expired
-  ///When set a [Timer] will execute every set [autoExpireCheckDuration]
+  /// Duration to check if items have expired
+  /// When set a [Timer] will execute every set [autoExpireCheckDuration]
   Duration? autoExpireCheckDuration;
 
   /// Callback function before an item has expired and the return result
@@ -45,7 +49,7 @@ class LRUMemoryCache<K, V> {
     int capacity = 100,
     this.onExpire,
     this.autoExpireCheckDuration,
-    StreamController<LinkedHashMap<K, V>>? streamController,
+    this.globalExpiryTime,
     this.onCapacityRemoved,
     this.shouldRemoveOnCapacity,
     this.expireMode = ExpireMode.onInteraction,
@@ -74,21 +78,29 @@ class LRUMemoryCache<K, V> {
   ///Check if [_cache] has allowance of items
   bool get isNotAtCapacity => !isAtCapacity;
 
-  /// Dymaically change the [_capacity] of the [_cache]
+  /// Dynamically change the [_capacity] of the [_cache]
   set capacity(int capacity) {
     assert(capacity > 0);
     _capacity = capacity;
+
+    //Correct size
+    while(_cache.length > _capacity) {
+      _removeLRUFromStack();
+    }
   }
 
   ///Returns the value of current [_capacity]
   int get capacity => _capacity;
 
-  /// O(n) but asyncronous
+  /// O(n) but asynchronous
   /// Internal function to add a value to the [_cache]
   V _add(
     V value, {
     Duration? expiryDuration,
   }) {
+
+    expiryDuration ??= globalExpiryTime;
+
     //Create key O(1)
     K newKey = generateKey(value);
 
@@ -362,5 +374,5 @@ class ManyResult<K, V> {
 /// Option on how to remove expired items
 enum ExpireMode {
   autoExpire,
-  onInteraction;
+  onInteraction
 }
