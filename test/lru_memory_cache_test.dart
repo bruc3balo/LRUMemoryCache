@@ -1,4 +1,4 @@
-import 'package:lru_cache/lru_memory_cache.dart';
+import 'package:lru_memory_cache/lru_memory_cache.dart';
 import 'package:test/test.dart';
 
 
