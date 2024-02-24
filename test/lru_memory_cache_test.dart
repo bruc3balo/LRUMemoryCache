@@ -1,7 +1,6 @@
 import 'package:lru_memory_cache/lru_memory_cache.dart';
 import 'package:test/test.dart';
 
-
 class Person {
   int id;
 
@@ -11,12 +10,10 @@ class Person {
 
   @override
   String toString() => "{id: $id, name: $name}";
-
 }
 
 void main() {
   group('LRU test', () {
-
     test(
       'Capacity Test',
       () {
@@ -79,18 +76,17 @@ void main() {
         await Future.delayed(Duration(seconds: 3));
 
         expect(cache.get("1"), null);
-
       },
     );
 
     test(
       "Dynamic types",
-          () async {
+      () async {
         print("Dynamic type test");
 
         LRUMemoryCache<dynamic, dynamic> cache = LRUMemoryCache(
           generateKey: (i) {
-            switch(i.runtimeType) {
+            switch (i.runtimeType) {
               case String:
                 return i.toString();
 
@@ -99,7 +95,6 @@ void main() {
 
               case Person:
                 return (i as Person).id;
-
             }
           },
           capacity: 10,
@@ -115,10 +110,7 @@ void main() {
         expect(data[1] is int, true);
 
         print(data);
-
       },
     );
-
-
   });
 }

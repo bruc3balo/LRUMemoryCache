@@ -1,7 +1,7 @@
 name: lru_memory_cache
-description: LRUMemoryCache is a Dart library that provides a simple, in-memory, least recently used (LRU) caching mechanism with expiration support. It allows you to cache key-value pairs, automatically managing the eviction of least recently used items when the cache reaches its capacity.
+description: LRUMemoryCache is a Dart library for in-memory LRU caching with expiration support. Cache key-value pairs, managing eviction of least recently used items upon reaching capacity.
 version: 1.0.0
-repository: https://github.com/bruc3balo/LRUCache.git
+repository: https://github.com/bruc3balo/LRUMemoryCache.git
 
 environment:
   sdk: '>=2.12.0 <4.0.0'

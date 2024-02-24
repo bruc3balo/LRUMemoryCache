@@ -4,7 +4,6 @@ import 'dart:collection';
 /// Holds cache data in memory for a set capacity
 /// Allows setting for a duration
 class LRUMemoryCache<K, V> {
-
   /// Maximum Capacity of [_cache]
   int _capacity;
 
@@ -84,7 +83,7 @@ class LRUMemoryCache<K, V> {
     _capacity = capacity;
 
     //Correct size
-    while(_cache.length > _capacity) {
+    while (_cache.length > _capacity) {
       _removeLRUFromStack();
     }
   }
@@ -98,7 +97,6 @@ class LRUMemoryCache<K, V> {
     V value, {
     Duration? expiryDuration,
   }) {
-
     expiryDuration ??= globalExpiryTime;
 
     //Create key O(1)
@@ -372,7 +370,4 @@ class ManyResult<K, V> {
 }
 
 /// Option on how to remove expired items
-enum ExpireMode {
-  autoExpire,
-  onInteraction
-}
+enum ExpireMode { autoExpire, onInteraction }
