@@ -8,3 +8,9 @@
   - Add many items as a map
   - Get many items
   - Set global expiryTime
+
+# 1.0.1
+- Changed description
+
+# 1.0.2
+- Able to remove item from the stack

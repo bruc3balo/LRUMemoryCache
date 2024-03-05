@@ -217,6 +217,12 @@ class LRUMemoryCache<K, V> {
     return result;
   }
 
+  /// O(n) remove from stack
+  V? remove(K key) {
+    _keyStack.remove(key);
+    return _cache.remove(key)?.data;
+  }
+
   /// Iterates through the list and removes expired data from [_cache] & [_keyStack]
   /// O(n) where n is [_cache.length]
   void _removeExpired() {
