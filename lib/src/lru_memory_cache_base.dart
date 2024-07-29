@@ -38,16 +38,25 @@ class LRUMemoryCache<K, V> {
   final bool Function(K, V)? shouldRemoveOnCapacity;
 
   /// Removes [ExpireMode.autoExpire] items from the [_cache]
-  late final Timer? _timer;
+  Timer? _timer;
 
   ///Tells the cache how to remove [_LRUData.expiryDuration] expired items
   final ExpireMode expireMode;
+
+  final Function(LinkedHashMap<K, V> updatedItems)? onItemsUpdated;
+
+  late final StreamController<LinkedHashMap<K, V>> streamController = StreamController.broadcast(
+    onListen: () {
+      onItemsUpdated?.call(dataMap);
+    },
+  );
 
   LRUMemoryCache({
     required this.generateKey,
     int capacity = 100,
     this.onExpire,
     this.autoExpireCheckDuration,
+    this.onItemsUpdated,
     this.globalExpiryTime,
     this.onCapacityRemoved,
     this.shouldRemoveOnCapacity,
@@ -132,10 +141,12 @@ class LRUMemoryCache<K, V> {
     //Remove Expired O(n)
     _removeInteractionExpired();
 
-    return _add(
+    value = _add(
       value,
       expiryDuration: expiryDuration,
     );
+    streamController.add(dataMap);
+    return value;
   }
 
   /// O(n) where n is [values.length]
@@ -165,6 +176,8 @@ class LRUMemoryCache<K, V> {
         () => value,
       );
     }
+
+    streamController.add(dataMap);
 
     return map;
   }
@@ -267,6 +280,7 @@ class LRUMemoryCache<K, V> {
       (v) => value,
       ifAbsent: () => value,
     );
+
   }
 
   /// Removes LRU item i.e. bottom item of stack from [_keyStack] & [_cache]
@@ -367,6 +381,7 @@ class ManyResult<K, V> {
   ManyResult();
 
   addFound(K key, V value) => found.putIfAbsent(key, () => value);
+
   addNotFound(K key) => notFound.add(key);
 
   @override

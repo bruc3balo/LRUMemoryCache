@@ -14,3 +14,6 @@
 
 # 1.0.2
 - Able to remove item from the stack
+
+# 1.0.3
+- Dispose bug on uninitialized timer
